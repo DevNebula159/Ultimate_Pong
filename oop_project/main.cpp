@@ -33,6 +33,7 @@ int check;
 sf::Font font;
 sf::Font heading;
 
+// Base Class
 class RecInfo {
 protected:
 	sf::RectangleShape rec;
