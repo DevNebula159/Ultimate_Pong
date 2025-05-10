@@ -19,19 +19,28 @@
 #define v sf::Vector2f
 #define c sf::Color
 
-int width = 1280, height = 720;
+int width = 1920, height = 1080;
 int gridSize = 30;
 
 int cellX = width / gridSize;
 int cellY = height / gridSize;
 
 // Game States
-int gameState = -1;
+int gameState = 0;
 int check;
 
 // Font
 sf::Font font;
 sf::Font heading;
+
+//Players
+bool player1 = true, player2 = true;
+
+void setTextinMiddle(sf::Text& text) {
+	float x = text.getGlobalBounds().getSize().x / 2, y = text.getGlobalBounds().getSize().y / 2;
+	text.setOrigin(v(x, y));
+	text.setPosition(v((float)(width / 2), (float)(height / 2)));
+}
 
 // Base Class
 class RecInfo {
@@ -84,50 +93,61 @@ public:
 };
 
 class Paddle: public RecInfo {
+	float sensitivity;
 public:
-	Paddle(): RecInfo(20.0, 120.0, 0, 0) {}
-	Paddle(float sizeX, float sizeY, float x, float y): RecInfo(sizeX, sizeY, x, y){}
-	Paddle(float x, float y): RecInfo(20.0, 120.0, x, y){}
+	Paddle() : RecInfo(20.0, 120.0, 0, 0) { sensitivity = 0.7; }
+	Paddle(float sizeX, float sizeY, float x, float y) : RecInfo(sizeX, sizeY, x, y) { sensitivity = 0.7; }
+	Paddle(float x, float y) : RecInfo(20.0, 120.0, x, y) { sensitivity =  0.7; }
+
+	void setToLeft() {
+		setPos(this->x, (height / 2) - (sizeY / 2));
+	}
 
 	void setToRight() {
-		setPos(width - sizeX, this->y);
+		setPos(width - sizeX, (height / 2) - (sizeY / 2));
+	}
+
+	void setSensitivity(float val) {
+		this->sensitivity = val;
 	}
 
 	void slideUp() {
 		if (this->y > 0) {
-			this->y -= 10;
-			rec.move(v(0, -10));
+			this->y -= sensitivity;
+			rec.move(v(0, (-1) * sensitivity));
 		}
 	}
 	void slideDown() {
-		if (this->y < (float)height) {
-			this->y += 10;
-			rec.move(v(0, 10));
+		if (this->y + sizeY < (float)height) {
+			this->y += sensitivity;
+			rec.move(v(0, sensitivity));
 		}
 	}
 };
 
 class Ball {
 	sf::CircleShape circle;
-	float radius, x, y;
+	float radius;
+	float speedX, speedY;
+	int hitCount;
 public:
 	Ball() {
-		radius = 10, x = 0, y = 0;
+		radius = 10;
+		speedX = 0.3, speedY = -0.1;
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
-		circle.setPosition(x, y);
+		circle.setPosition(v(0, 0));
+		hitCount = 0;
 	}
 	Ball(float radius, float x, float y) {
 		this->radius = radius;
-		this->x = x;
-		this->y = y;
+		speedX = 0.35, speedY = -0.1;
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
-		circle.setPosition(x, y);
+		circle.setPosition(v(x, y));
+		hitCount = 0;
 	}
-	void setPos(float x, float y) {
-		this->x = x;
-		this->y = y;
+	void setPs(float x, float y) {
 		circle.setPosition(v(x, y));
 	}
 	void setColor(c val) {
@@ -136,51 +156,131 @@ public:
 	void setColor(int r, int g, int b) {
 		circle.setFillColor(c(r, g, b));
 	}
+	void setSpeed() {
+		float temp = rand() % 2;
+		if (!temp) {
+			speedX *= -1;
+			speedY *= -1;
+		}
+	}
 	void setInMiddle() {
-		//float halfX = (radiusX / 2) - (radius / 2);
-		//float halfY = (radiusY / 2) - (radius / 2);
-		//setPos(halfX, halfY);
-		circle.setOrigin(v(radius, radius));
-		setPos((float)width / 2, (float)height / 2);
+		float halfX = (width / 2) - (radius / 2);
+		float halfY = (height / 2) - (radius / 2);
+		setPs(halfX, halfY);
 	}
 	sf::CircleShape& getBody() {
 		return circle;
 	}
+
+	void motion() {
+		circle.move(v(speedX, speedY));
+	}
+
+	bool hitPaddle(Paddle& other) {
+		if (circle.getGlobalBounds().intersects(other.getBody().getGlobalBounds())) {
+			hitCount++;
+			if (hitCount & 1)
+				speedY *= 1.1;
+			else
+				speedY *= 0.92;
+			if (speedX < 3)
+				speedX *= 1.05;
+			speedX *= -1;
+			return true;
+		}
+		return false;
+	}
+
+	bool hitTop() {
+		if (circle.getPosition().y <= 0 || circle.getPosition().y + radius >= height) {
+			speedY *= -1;
+			return true;
+		}
+		return false;
+	}
+
+	void gameValid() {
+		if (circle.getPosition().x + (2 * radius) < 0)
+			player1 = false;
+		if (circle.getPosition().x > width + (2 * radius))
+			player2 = false;
+		if (!player1 || !player2)
+			gameState = 1;
+	}
 };
 
+void mainGame(sf::RenderWindow& window, Paddle& p1, Paddle& p2, Ball& b1) {
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+		p1.slideUp();
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+		p1.slideDown();
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+		p2.slideUp();
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+		p2.slideDown();
+	b1.motion();
+	b1.hitPaddle(p1);
+	b1.hitPaddle(p2);
+	b1.hitTop();
+	b1.gameValid();
+
+
+	window.clear();
+	window.draw(p1.getBody());
+	window.draw(p2.getBody());
+	window.draw(b1.getBody());
+}
+
+void gameOver(sf::RenderWindow& window) {
+	sf::Text t1("GameOver", font, 50), announce("Player 1 Lost", font, 30);
+
+	setTextinMiddle(t1);
+	t1.setPosition(v(t1.getPosition().x, t1.getPosition().y - 200));
+	t1.setFillColor(c::White);
+	
+	if (!player2)
+		announce.setString("Player 2 Lost");
+	setTextinMiddle(announce);
+	announce.setFillColor(c::White);
+
+	window.clear();
+	window.draw(t1);
+	window.draw(announce);
+}
 
 int main() {
-	sf::RenderWindow window(sf::VideoMode(width, height), "Pong Game", sf::Style::Default);
-	sf::CircleShape circle(50.0f);
-	circle.setFillColor(sf::Color::Blue);
+	srand(time(0));
+
+	sf::RenderWindow window(sf::VideoMode(width, height), "Pong Game", sf::Style::Fullscreen);
 	Paddle p1, p2;
 	Ball b1;
 	b1.setInMiddle();
+	b1.setSpeed();
+	p1.setToLeft();
 	p2.setToRight();
 
+	if (!font.loadFromFile("fonts/verdana.ttf")) {
+		std::cout << "Error loading Verdana Font" << std::endl;
+		return 1;
+	}
 	while (window.isOpen()) {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
 				window.close();
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::W)
-				p1.slideUp();
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S)
-				p1.slideDown();	
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up)
-				p2.slideUp();
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down)
-				p2.slideDown();
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
-				window.close();
+			if (event.type == sf::Event::KeyPressed) {
+				if (event.key.code == sf::Keyboard::Escape)
+					window.close();
+			}
 
 		}
-
-
-		window.clear();
-		window.draw(p1.getBody());
-		window.draw(p2.getBody());
-		window.draw(b1.getBody());
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+			window.close();
+		//Functions CAll
+		if (gameState == 0)
+			mainGame(window, p1, p2, b1);
+		if (gameState == 1)
+			gameOver(window);
 
 		window.display();
 	}
