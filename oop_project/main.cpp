@@ -157,11 +157,16 @@ public:
 		circle.setFillColor(c(r, g, b));
 	}
 	void setSpeed() {
-		float temp = rand() % 2;
-		if (!temp) {
+		float tempY = rand() % 7;
+		float tempX = rand() % 2;
+		tempY -= 3;
+		tempY /= 10;
+		if (abs(tempY) - 0 <= 0.01)
+			tempY = 0.1;
+		speedY = tempY;
+		if (!tempX)
 			speedX *= -1;
-			speedY *= -1;
-		}
+
 	}
 	void setInMiddle() {
 		float halfX = (width / 2) - (radius / 2);
