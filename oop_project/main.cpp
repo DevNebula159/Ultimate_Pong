@@ -44,6 +44,7 @@ int menuSelection = 0, total = 2;
 
 int mode = 0;
 
+// sets the text to the middle of screen
 void setTextinMiddle(sf::Text& text) {
 	float x = text.getGlobalBounds().width / 2, y = text.getGlobalBounds().height / 2;
 	text.setOrigin(v(x, y));
@@ -201,9 +202,9 @@ public:
 class Paddle : public RecInfo {
 	float sensitivity;
 public:
-	Paddle() : RecInfo(25.0, 135.0, 0, 0) { sensitivity = 0.8; }
-	Paddle(float sizeX, float sizeY, float x, float y) : RecInfo(sizeX, sizeY, x, y) { sensitivity = 0.8; }
-	Paddle(float x, float y) : RecInfo(20.0, 120.0, x, y) { sensitivity = 0.8; }
+	Paddle() : RecInfo(25.0, 135.0, 0, 0) { sensitivity = 20; }
+	Paddle(float sizeX, float sizeY, float x, float y) : RecInfo(sizeX, sizeY, x, y) { sensitivity = 20; }
+	Paddle(float x, float y) : RecInfo(20.0, 120.0, x, y) { sensitivity = 20; }
 
 	void setToLeft() {
 		setPos(sizeX, (height / 2) - (sizeY / 2));
@@ -217,8 +218,33 @@ public:
 		return this->y;
 	}
 
+	float getSizeX() {
+		return sizeX;
+	}
+
+	float getSizeY() {
+		return sizeY;
+	}
+
 	void setSensitivity(float val) {
 		this->sensitivity = val;
+	}
+
+	float getSensitivity() {
+		return this->sensitivity;
+	}
+
+	void aiUp() {
+		if (this->y > 0) {
+			this->y -= 20;
+			rec.move(v(0, -20));
+		}
+	}
+	void aiDown() {
+		if (this->y + sizeY < (float)height) {
+			this->y += 20;
+			rec.move(v(0, 20));
+		}
 	}
 
 	void slideUp() {
@@ -242,14 +268,14 @@ class Ball {
 public:
 	Ball() {
 		radius = 15;
-		speedX = 0.6, speedY = -0.1;
+		speedX = 20, speedY = -10;
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
 		circle.setPosition(v(0, 0));
 	}
 	Ball(float radius, float x, float y) {
 		this->radius = radius;
-		speedX = 0.6, speedY = -0.1;
+		speedX = 20, speedY = -10;
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
 		circle.setPosition(v(x, y));
@@ -269,13 +295,12 @@ public:
 		circle.setFillColor(c(r, g, b));
 	}
 	void setSpeed() {
-		speedX = 0.6, speedY = -0.1;
-		float tempY = rand() % 7;
+		speedX = 15, speedY = -10;
+		float tempY = rand() % 20;
 		float tempX = rand() % 2;
-		tempY -= 3;
-		tempY /= 10;
-		if (abs(tempY) - 0 <= 0.01)
-			tempY = 0.1;
+		tempY -= 10;
+		if (abs(tempY) - 0 <= 1)
+			tempY = 10;
 		speedY = tempY;
 		if (!tempX)
 			speedX *= -1;
@@ -352,42 +377,70 @@ void drawMenu(sf::RenderWindow& window, int gameState) {
 	}
 }
 
-void mainGame(sf::RenderWindow& window, Paddle& p1, Paddle& p2, Ball& b1, int mode) {
-	if (Keyboard::isKeyPressed(Keyboard::W))
-		p1.slideUp();
-	if (Keyboard::isKeyPressed(Keyboard::S))
-		p1.slideDown();
-	if (mode == 0)
-	{
-		if (b1.getPos() > p2.getPos())
+class PongGame {
+	int p1Score, p2Score, maxScore;
+	Ball b;
+	Paddle p1, p2;
+	int mode;
+public:
+	PongGame() {
+		p1Score = 0, p2Score = 0, maxScore = 10;
+		b.setInMiddle();
+		b.setSpeed();
+		p2.setToRight();
+		p1.setToLeft();
+		p1.setSensitivity(20);
+		p2.setSensitivity(15);
+		mode = 0;
+	}
+	void setMode(int mode) {
+		this->mode = mode;
+	}
+	void checks() {
+		if (Keyboard::isKeyPressed(Keyboard::W))
+			p1.slideUp();
+		if (Keyboard::isKeyPressed(Keyboard::S))
+			p1.slideDown();
+		if (mode == 0)
 		{
-			p2.slideDown();
+			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
+				p2.slideDown();
+			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
+				p2.slideUp();
 		}
-		else if (b1.getPos() < p2.getPos())
-			p2.slideUp();
+		else if (mode == 1) {
+			if (Keyboard::isKeyPressed(Keyboard::Up))
+				p2.slideUp();
+			if (Keyboard::isKeyPressed(Keyboard::Down))
+				p2.slideDown();
+		}
+		if (!player1 || !player2) {
+			player1 = true;
+			player2 = true;
+			b.setInMiddle();
+			b.setSpeed();
+		}
 	}
-	else if (mode == 1) {
-		if (Keyboard::isKeyPressed(Keyboard::Up))
-			p2.slideUp();
-		if (Keyboard::isKeyPressed(Keyboard::Down))
-			p2.slideDown();
+	void startGame() {
+		b.motion();
+		b.hitPaddle(p1);
+		b.hitPaddle(p2);
+		b.hitTop();
+		b.gameValid();
 	}
-	b1.motion();
-	b1.hitPaddle(p1);
-	b1.hitPaddle(p2);
-	b1.hitTop();
-	b1.gameValid();
-	if (!player1 || !player2) {
-		player1 = true;
-		player2 = true;
-		b1.setInMiddle();
-		b1.setSpeed();
+	void render(sf::RenderWindow& window) {
+		window.clear();
+		window.draw(p1.getBody());
+		window.draw(p2.getBody());
+		window.draw(b.getBody());
 	}
+};
 
-	window.clear();
-	window.draw(p1.getBody());
-	window.draw(p2.getBody());
-	window.draw(b1.getBody());
+void mainGame(sf::RenderWindow& window, int mode, PongGame& p) {
+	p.setMode(mode);
+	p.checks();
+	p.startGame();
+	p.render(window);
 }
 
 void menuInput(sf::RenderWindow& window, sf::Event& event) {
@@ -438,13 +491,9 @@ int main() {
 
 	Court court;
 	sf::RenderWindow& window = court.getWindow();
+	window.setFramerateLimit(60);
 
-	Paddle p1, p2;
-	Ball b1;
-	b1.setInMiddle();
-	b1.setSpeed();
-	p2.setToRight();
-	p1.setToLeft();
+	PongGame p;
 
 	if (!font.loadFromFile("fonts/verdana.ttf")) {
 		std::cout << "Error loading Verdana Font" << std::endl;
@@ -462,7 +511,7 @@ int main() {
 		if (gameState < 3)
 			drawMenu(window, gameState);
 		else if (gameState == 3) {
-			mainGame(window, p1, p2, b1, mode);
+			mainGame(window, mode, p);
 		}
 
 		window.display();
