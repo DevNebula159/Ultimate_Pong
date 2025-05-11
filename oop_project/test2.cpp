@@ -50,69 +50,86 @@ void setTextinMiddle(sf::Text& text) {
 	text.setPosition(v((float)(width / 2), (float)(height / 2)));
 }
 
-class Menu {
-protected:
-	vector<string> ptr;
-	int n;
-	float lineSpacing;
-	vector<sf::Text> text;
+class Button {
+	sf::Text text;
 	sf::Color color;
-public:
-	Menu() {
-		lineSpacing = 0;
-		n = 0;
-		color = c::White;
-	}
-	Menu(string* ptr, int size, sf::Font f, float chSize, const c color) {
-		this->color = color;
-		n = size;
-		lineSpacing = 100;
-		this->ptr.resize(n);
-		this->text.resize(n);
-		for (int i = 0; i < n; i++) {
-			this->ptr[i] = ptr[i];
-			text[i].setString(this->ptr[i]);
-			text[i].setFont(f);
-			text[i].setCharacterSize(chSize);
-			text[i].setFillColor(this->color);
-			setTextinMiddle(text[i]);
-			if (i < ceil((float)n / 2))
-				text[i].setPosition(v(text[i].getPosition().x, text[i].getPosition().y - (lineSpacing * (i))));
-			else
-				text[i].setPosition(v(text[i].getPosition().x, text[i].getPosition().y + (lineSpacing * (i + 1))));
-		}
-	}
-	void setColor(c color) {
-		for (int i = 0; i < n; i++)
-			text[i].setFillColor(color);
-	}
-	void setFont(sf::Font f) {
-		for (int i = 0; i < n; i++)
-			text[i].setFont(f);
-	}
-	void setChSize(float chSize) {
-		for (int i = 0; i < n; i++)
-			text[i].setCharacterSize(chSize);
-	}
-	void display(sf::RenderWindow& window) {
-		for (int i = 0; i < n; i++) {
-			window.draw(text[i]);
-		}
-	}
-	sf::Text& operator[] (int idx) {
-		return text[idx];
-	}
-};
-
-class Button : public Menu {
+	float chSize;
 public:
 	Button() {
-
+		chSize = 70;
 	}
-	void currentButton() {
+	Button(string s, sf::Font& f, float chSize, const c color) {
+		this->color = color;
+		this->chSize = chSize;
+		text.setString(s);
+		text.setFillColor(this->color);
+		text.setFont(f);
+		text.setCharacterSize(this->chSize);
+	}
 
+	void operator()(string s, sf::Font& f, float chSize, const c color) {
+		this->color = color;
+		this->chSize = chSize;
+		text.setString(s);
+		text.setFillColor(this->color);
+		text.setFont(f);
+		text.setCharacterSize(this->chSize);
+	}
+
+	sf::Text& getText() {
+		return text;
+	}
+
+	void highlight() {
+		text.setFillColor(c::Green);
+	}
+	void notHighlight() {
+		text.setFillColor(this->color);
+	}
+
+};
+
+
+class Menu {
+	Button* ptr;
+	int n;
+public:
+	Menu() {
+		ptr = nullptr;
+		n = 0;
+	}
+
+	Menu(Button* other, int n) {
+		ptr = other;
+		this->n = n;
+	}
+
+	void setInMiddle() {
+		float temp = (float)(n / 2) * 100;
+		if (!(n & 1))
+			temp += 50;
+		setTextinMiddle(ptr[0].getText());
+		float x = ptr[0].getText().getPosition().x, y = ptr[0].getText().getPosition().y;
+		ptr[0].getText().setPosition(v(x, y - temp));
+		y = ptr[0].getText().getPosition().y;
+		for (int i = 1; i < n; i++) {
+			setTextinMiddle(ptr[i].getText());
+			ptr[i].getText().setPosition(v(x, y + (i * 100)));
+		}
+	}
+
+	void display(sf::RenderWindow& window) {
+		for (int i = 0;i < n; i++) {
+			if (i == menuSelection) {
+				ptr[i].highlight();
+			}
+			else
+				ptr[i].notHighlight();
+			window.draw(ptr[i].getText());
+		}
 	}
 };
+
 
 // Base Class
 class RecInfo {
@@ -205,7 +222,6 @@ class Ball {
 	sf::CircleShape circle;
 	float radius;
 	float speedX, speedY;
-	int hitCount;
 public:
 	Ball() {
 		radius = 15;
@@ -213,7 +229,6 @@ public:
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
 		circle.setPosition(v(0, 0));
-		hitCount = 0;
 	}
 	Ball(float radius, float x, float y) {
 		this->radius = radius;
@@ -221,7 +236,6 @@ public:
 		circle.setFillColor(c::Blue);
 		circle.setRadius(radius);
 		circle.setPosition(v(x, y));
-		hitCount = 0;
 	}
 
 	float getPos() {
@@ -264,8 +278,6 @@ public:
 
 	bool hitPaddle(Paddle& other) {
 		if (circle.getGlobalBounds().intersects(other.getBody().getGlobalBounds())) {
-			hitCount++;
-			speedY *= 1.05;
 			if (speedX < 3)
 				speedX *= 1.15;
 			speedX *= -1;
@@ -292,63 +304,30 @@ public:
 	}
 };
 
-void drawMenu(sf::RenderWindow& window, Event event, int gameState) {
-
+void drawMenu(sf::RenderWindow& window, int gameState) {
 	string s[2] = { "Play", "Exit" }, s1[2] = { "AI", "VS" }, s2[3] = { "Easy", "Medium", "Hard" };
-	Menu m(s, 2, font, 70, c::White), m1(s1, 2, font, 70, c::White), m2(s2, 3, font, 70, c::White);
+	Button b[2] = { {s[0], font, 70, c::White }, {s[1], font, 70, c::White } };
+	Button b1[2] = { {s1[0], font, 70, c::White}, {s1[1], font, 70, c::White} };
+	Button b2[3] = { {s2[0], font, 70, c::White}, {s2[1], font, 70, c::White}, {s2[2], font, 70, c::White} };
 
-	//Text Play("Play", font, 70), Exit("Exit", font, 70);
-	//setTextinMiddle(Play);
-	//setTextinMiddle(Exit);
-	//Play.setPosition(v(Play.getPosition().x, Play.getPosition().y - 100));
-	//Exit.setPosition(v(Exit.getPosition().x, Exit.getPosition().y + 100));
-
-	//Text AI("AI", font, 70), VS("VS", font, 70);
-	//setTextinMiddle(VS);
-	//setTextinMiddle(AI);
-	//AI.setPosition(v(AI.getPosition().x, AI.getPosition().y - 100));
-
-	//Text Easy("Easy", font, 70), Medium("Medium", font, 70), Hard("Hard", font, 70);
-	//setTextinMiddle(Medium);
-	//setTextinMiddle(Easy);
-	//setTextinMiddle(Hard);
-	//Easy.setPosition(v(Easy.getPosition().x, Easy.getPosition().y - 200));
-	//Hard.setPosition(v(Hard.getPosition().x, Hard.getPosition().y + 200));
-
-	//Play.setFillColor(menuSelection == 0 ? c::Red : c::White);
-	//Exit.setFillColor(menuSelection == 1 ? c::Red : c::White);
-
-	//AI.setFillColor(menuSelection == 0 ? c::Red : c::White);
-	//VS.setFillColor(menuSelection == 1 ? c::Red : c::White);
-
-	//Easy.setFillColor(menuSelection == 0 ? c::Red : c::White);
-	//Medium.setFillColor(menuSelection == 1 ? c::Red : c::White);
-	//Hard.setFillColor(menuSelection == 2 ? c::Red : c::White);
-
-	//if (gameState == 0)
-	//{
-	//	window.clear();
-	//	window.draw(Play);
-	//	window.draw(Exit);
-	//}
-	//else if (gameState == 1) {
-	//	window.clear();
-	//	window.draw(VS);
-	//	window.draw(AI);
-	//}
-	//else if (gameState == 2) {
-	//	window.clear();
-	//	window.draw(Easy);
-	//	window.draw(Medium);
-	//	window.draw(Hard);
-	//}
-	window.clear();
-	if (gameState == 0)
+	if (gameState == 0) {
+		Menu m(b, 2);
+		m.setInMiddle();
+		window.clear();
 		m.display(window);
-	else if (gameState == 1)
+	}
+	else if (gameState == 1) {
+		Menu m1(b1, 2);
+		m1.setInMiddle();
+		window.clear();
 		m1.display(window);
-	else if (gameState == 2)
+	}
+	else if (gameState == 2) {
+		Menu m2(b2, 3);
+		m2.setInMiddle();
+		window.clear();
 		m2.display(window);
+	}
 }
 
 void mainGame(sf::RenderWindow& window, Paddle& p1, Paddle& p2, Ball& b1, int mode) {
@@ -381,23 +360,6 @@ void mainGame(sf::RenderWindow& window, Paddle& p1, Paddle& p2, Ball& b1, int mo
 	window.draw(p1.getBody());
 	window.draw(p2.getBody());
 	window.draw(b1.getBody());
-}
-
-void gameOver(sf::RenderWindow& window) {
-	Text t1("GameOver", font, 50), announce("Player 1 Lost", font, 30);
-
-	setTextinMiddle(t1);
-	t1.setPosition(v(t1.getPosition().x, t1.getPosition().y - 200));
-	t1.setFillColor(c::White);
-
-	if (!player2)
-		announce.setString("Player 2 Lost");
-	setTextinMiddle(announce);
-	announce.setFillColor(c::White);
-
-	window.clear();
-	window.draw(t1);
-	window.draw(announce);
 }
 
 int main() {
@@ -464,7 +426,7 @@ int main() {
 
 		//Functions CAll
 		if (gameState < 3)
-			drawMenu(window, event, gameState);
+			drawMenu(window, gameState);
 		else if (gameState == 3) {
 			mainGame(window, p1, p2, b1, mode);
 		}
