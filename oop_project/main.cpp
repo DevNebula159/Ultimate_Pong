@@ -24,7 +24,7 @@ using namespace std;
 int width = 1920, height = 1080;
 
 // Game States
-int gameState = 0;
+int gameState = -3;
 int check;
 
 // Font
@@ -32,7 +32,7 @@ sf::Font font;
 sf::Font heading;
 
 // Heading Color
-float hR = 136, hG = 46, hB = 170, hSize = 100;
+float hR = 43, hG = 110, hB = 176, hSize = 100;
 
 //Players
 bool player1 = true, player2 = true;
@@ -43,7 +43,7 @@ float p1tempX = 0, p1tempY = 0, p2tempX = 0, p2tempY = 0, balltempX = 0, balltem
 int p1scoretemp = 0, p2scoretemp = 0;
 
 // MaxScore
-int maxScore = 3;
+int maxScore = 10;
 
 //Delay Clock
 sf::Clock inputClock;
@@ -52,14 +52,21 @@ sf::Clock inputClock;
 int menuSelection = 0, total = 3;
 
 // Textures
-sf::Texture texture, texture1;
+sf::Texture texture, texture1, gbgTexture;
 
 //Sprites
-sf::Sprite sprite, sprite1;
+sf::Sprite sprite, sprite1, gbgSprite;
 
 // Sounds
-sf::SoundBuffer scrollBuffer;
-sf::Sound scrollSound;
+sf::SoundBuffer scrollBuffer, selectBuffer, escapekBuffer, hitPaddleBuffer, winBuffer, bgmBuffer;
+sf::Sound scrollSound, selectSound, escapeSound, hitPaddleSound, winSound;
+sf::Music bgm;
+
+//Intro Items
+sf::Texture intro1T, intro2T, intro3T, intro4T, intro5T, intro6T, intro7T, intro8T, intro9T, intro10T, intro11T;
+sf::Sprite intro1S;
+sf::SoundBuffer sbIntro;
+sf::Sound sIntro;
 
 // Name Input
 //Username
@@ -167,11 +174,14 @@ void darj(int lead, string username) {
 }
 
 void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
-	sf::Text askName("Enter Your Name", font, 100), win("Player 1 Won", font, 50);
+	sf::Text askName("Enter Your Name", font, 100);
 	setHeading(askName);
-	win.setFillColor(c(204, 0, 102));
+
+	sf::Text win("Player 1 Won", font, 60);
+	win.setFillColor(c(0, 10, 10));
+	win.setLetterSpacing(0.8);
 	setTextinMiddle(win);
-	win.setPosition(v(win.getPosition().x, win.getPosition().y + 250));
+	win.setPosition(v(win.getPosition().x, win.getPosition().y + 300));
 
 	if (p2scoretemp == maxScore)
 		win.setString("Player 2 Won");
@@ -189,6 +199,7 @@ void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
 			}
 			else if (event.text.unicode == 13) { // Enter
 				darj(lead, username);
+				loadHighScores();
 				gameState = 5;
 			}
 			else if (event.text.unicode < 128) { // Valid ASCII
@@ -201,10 +212,72 @@ void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
 
 	// Draw
 	window.clear();
-	window.draw(sprite1);
+	window.draw(sprite);
 	window.draw(userInputText);
 	window.draw(askName);
 	window.draw(win);
+}
+
+void intro(sf::RenderWindow& window) {
+
+	static sf::Clock clock;
+	float elapsedTime = clock.getElapsedTime().asSeconds() + 0.5;
+
+	if (elapsedTime <= 0.62)
+		intro1S.setTexture(intro4T);
+	else if (elapsedTime <= 0.7)
+		intro1S.setTexture(intro5T);
+	else if (elapsedTime <= 0.78)
+		intro1S.setTexture(intro6T);
+	else if (elapsedTime <= 0.86)
+		intro1S.setTexture(intro7T);
+	else if (elapsedTime <= 0.94)
+		intro1S.setTexture(intro8T);
+	else if (elapsedTime <= 1.02)
+		intro1S.setTexture(intro9T);
+	else if (elapsedTime <= 1.1)
+		intro1S.setTexture(intro10T);
+	else if (elapsedTime <= 1.18)
+		intro1S.setTexture(intro11T);
+	else if (elapsedTime <= 1.26)
+		intro1S.setTexture(intro10T);
+	else if (elapsedTime <= 1.34)
+		intro1S.setTexture(intro9T);
+	else if (elapsedTime <= 1.42)
+		intro1S.setTexture(intro8T);
+	else if (elapsedTime <= 1.5)
+		intro1S.setTexture(intro7T);
+	else if (elapsedTime <= 1.58)
+		intro1S.setTexture(intro8T);
+	else if (elapsedTime <= 1.66)
+		intro1S.setTexture(intro9T);
+	else if (elapsedTime <= 1.74)
+		intro1S.setTexture(intro10T);
+	else if (elapsedTime <= 1.82)
+		intro1S.setTexture(intro11T);
+	else if (elapsedTime <= 1.9)
+		intro1S.setTexture(intro10T);
+	else if (elapsedTime <= 1.98)
+		intro1S.setTexture(intro9T);
+	else if (elapsedTime <= 2.06)
+		intro1S.setTexture(intro8T);
+	else if (elapsedTime <= 2.14)
+		intro1S.setTexture(intro7T);
+	else if (elapsedTime <= 2.22)
+		intro1S.setTexture(intro8T);
+	else if (elapsedTime <= 3) {
+		if (elapsedTime > 2.5)
+			sIntro.stop();
+		intro1S.setTexture(intro9T);
+	}
+	else {
+		bgm.play();
+		gameState = 0;
+	}
+
+	// Draw
+	window.clear();
+	window.draw(intro1S);
 }
 
 void setScoreDetails(sf::Text& text, string data) {
@@ -217,7 +290,7 @@ void setScoreDetails(sf::Text& text, string data) {
 
 void displayHighScores(sf::RenderWindow& window) {
 	sf::Text scoreHeading("HighScores", font, 100), goBack("Press Escape to Return to Main Menu", font, 40);
-	goBack.setFillColor(c(192, 192, 192));
+	goBack.setFillColor(c(40, 40, 40));
 	setTextinMiddle(goBack);
 	goBack.setPosition(v(goBack.getPosition().x, goBack.getPosition().y + 400));
 	setHeading(scoreHeading);
@@ -308,7 +381,7 @@ public:
 	}
 
 	void highlight() {
-		text.setFillColor(c(0, 204, 204));
+		text.setFillColor(c(26, 102, 171));
 	}
 	void notHighlight() {
 		text.setFillColor(this->color);
@@ -412,9 +485,9 @@ public:
 class Paddle : public RecInfo {
 	float sensitivity;
 public:
-	Paddle() : RecInfo(25.0, 135.0, 0, 0) { sensitivity = 20; }
+	Paddle() : RecInfo(25.0, 200.0, 0, 0) { sensitivity = 20; }
 	Paddle(float sizeX, float sizeY, float x, float y) : RecInfo(sizeX, sizeY, x, y) { sensitivity = 20; }
-	Paddle(float x, float y) : RecInfo(20.0, 120.0, x, y) { sensitivity = 20; }
+	Paddle(float x, float y) : RecInfo(25.0, 200.0, x, y) { sensitivity = 20; }
 
 	void setToLeft() {
 		setPos(sizeX, (height / 2) - (sizeY / 2));
@@ -436,6 +509,11 @@ public:
 		return sizeY;
 	}
 
+	void setLength(float val) {
+		this->sizeY = val;
+		rec.setSize(v(sizeX, sizeY));
+	}
+
 	void setSensitivity(float val) {
 		this->sensitivity = val;
 	}
@@ -444,16 +522,21 @@ public:
 		return this->sensitivity;
 	}
 
-	void aiUp() {
+	void setOriginalLength() {
+		this->sizeY = 170.0;
+		rec.setSize(v(sizeX, sizeY));
+	}
+
+	void aiUp(float val) {
 		if (this->y > 0) {
-			this->y -= 20;
-			rec.move(v(0, -20));
+			this->y -= val;
+			rec.move(v(0, (-1) * val));
 		}
 	}
-	void aiDown() {
+	void aiDown(float val) {
 		if (this->y + sizeY < (float)height) {
-			this->y += 20;
-			rec.move(v(0, 20));
+			this->y += val;
+			rec.move(v(0, val));
 		}
 	}
 
@@ -552,12 +635,28 @@ public:
 	}
 
 	bool hitPaddle(Paddle& other) {
+		float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
+		if (sf::Joystick::isConnected(0)) {
+			stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
+			stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
+		}
+		if (sf::Joystick::isConnected(1)) {
+			stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
+			stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
+		}
 		if (circle.getGlobalBounds().intersects(other.getBody().getGlobalBounds())) {
+			hitPaddleSound.play();
 			if (speedX < 2) {
 				speedX *= 1.15;
 				speedY *= 1.2;
 			}
 			speedX *= -1;
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, stickX, stickY, 1, 0) || checkAxisMoved(1, stickX, stickY, 1, 0)) {
+				if (speedY > 0) speedY *= -1;
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, stickX, stickY, 0, 1) || checkAxisMoved(1, stickX, stickY, 0, 1)) {
+				if (speedY < 0) speedY *= -1;
+			}
 			return true;
 		}
 		return false;
@@ -588,16 +687,16 @@ public:
 void drawMenu(sf::RenderWindow& window, int gameState) {
 	string s[3] = { "Play", "High Scores","Exit"}, s1[2] = {"AI", "VS"}, s2[3] = {"Easy", "Medium", "Hard"}, s3[3] = {"Resume", "Return to Main Menu", "Restart"};
 	string s4[3] = { "Restart", "Return to Main Menu", "Exit" };
-	Button b[3] = { {s[0], font, 70, c::White }, {s[1], font, 70, c::White }, {s[2], font, 70, c::White}};
-	Button b1[2] = { {s1[0], font, 70, c::White}, {s1[1], font, 70, c::White} };
-	Button b2[3] = { {s2[0], font, 70, c::White}, {s2[1], font, 70, c::White}, {s2[2], font, 70, c::White} };
+	Button b[3] = { {s[0], font, 50, c::White }, {s[1], font, 50, c::White }, {s[2], font, 50, c::White}};
+	Button b1[2] = { {s1[0], font, 50, c::White}, {s1[1], font, 50, c::White} };
+	Button b2[3] = { {s2[0], font, 50, c::White}, {s2[1], font, 50, c::White}, {s2[2], font, 50, c::White} };
 
 	Button b3[3] = { {s3[0], font, 50, c::White}, {s3[1], font, 50, c::White}, {s3[2], font, 50, c::White} };
 	Button b4[3] = { {s4[0], font, 50, c::White}, { s4[1], font, 50, c::White }, {s4[2], font, 50, c::White} };
 
 	if (gameState == 0) {
-		sf::Text title("Pong Game", heading, 200);
-		title.setLetterSpacing(0.8f);
+		sf::Text title("Pong Game", heading, 130);
+		title.setLetterSpacing(1.9f);
 		title.setFillColor(c(hR, hG, hB));
 		setTextinMiddle(title);
 		title.setPosition(v(title.getPosition().x, title.getPosition().y - 350));
@@ -638,7 +737,7 @@ void drawMenu(sf::RenderWindow& window, int gameState) {
 		Menu m3(b3, 3);
 		m3.setInMiddle();
 		window.clear();
-		window.draw(sprite1);
+		window.draw(sprite);
 		m3.display(window);
 	}
 	else if (gameState == 5) {
@@ -647,13 +746,23 @@ void drawMenu(sf::RenderWindow& window, int gameState) {
 		setTextinMiddle(overText);
 		overText.setPosition(v(overText.getPosition().x, overText.getPosition().y - 300));
 
+		sf::Text win("Player 1 Won", font, 60);
+		win.setFillColor(c(0, 10, 10));
+		win.setLetterSpacing(0.8);
+		setTextinMiddle(win);
+		win.setPosition(v(win.getPosition().x, win.getPosition().y + 300));
+
+		if (p2scoretemp == maxScore)
+			win.setString("Player 2 Won");
+
 		Menu m4(b4, 3);
 		m4.setInMiddle();
 
 		//Draw
 		window.clear();
-		window.draw(sprite1);
+		window.draw(sprite);
 		window.draw(overText);
+		window.draw(win);
 		m4.display(window);
 	}
 }
@@ -706,22 +815,14 @@ public:
 			p1.slideUp();
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, stickX, stickY, 0, 1))
 			p1.slideDown();
-		if (mode == 0) {
-			p2.setSensitivity(10);
-			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
-				p2.slideDown();
-			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
-				p2.slideUp();
-		}
-		if (mode == 1) {
-			p2.setSensitivity(12);
-			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
-				p2.slideDown();
-			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
-				p2.slideUp();
-		}
-		if (mode == 2) {
-			p2.setSensitivity(15);
+		if (mode <= 2) {
+			if (mode == 0)
+				p2.setSensitivity(9);
+			if (mode == 1)
+				p2.setSensitivity(12);
+			if (mode == 2)
+				p2.setSensitivity(15);
+
 			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
 				p2.slideDown();
 			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
@@ -735,17 +836,18 @@ public:
 		}
 		if (!player1 && p2Score < maxScore) {
 			p2Score++;
+			p2.setLength(p2.getSizeY() - 7.0f);
 		}
 		if (!player2 && p1Score < maxScore) {
 			p1Score++;
+			p1.setLength(p1.getSizeY() - 7.0f);
 		}
 		if (!player1 || !player2) {
 			if (p1Score < maxScore && p2Score < maxScore) {
 				player1 = true;
 				player2 = true;
 				p1.setToLeft();
-				if (mode == 3)
-					p2.setToRight();
+				p2.setToRight();
 				b.setInMiddle();
 				delayCount = 0;
 				b.setSpeed();
@@ -760,8 +862,14 @@ public:
 			total = 3;
 			check = 3;
 			lead = abs(p1Score - p2Score);
-			userInputText.setString("");
-			gameState = -1;
+			if (mode == 3) {
+				username = "";
+				userInputText.setString(username);
+				gameState = -1;
+			}
+			else
+				gameState = 5;
+			winSound.play();
 		}
 	}
 	void startGame() {
@@ -792,7 +900,7 @@ public:
 
 	void render(sf::RenderWindow& window) {
 		window.clear();
-		window.draw(sprite1);
+		window.draw(gbgSprite);
 		string score1 = to_string(p1Score);
 		sf::Text s1(score1, font, 70);
 		string score2 = to_string(p2Score);
@@ -803,14 +911,16 @@ public:
 		s2.setPosition(v(1420, 50));
 		window.draw(s1);
 		window.draw(s2);
+		window.draw(b.getBody());
 		window.draw(p1.getBody());
 		window.draw(p2.getBody());
-		window.draw(b.getBody());
 	}
 	friend void initializeGame(PongGame& p);
 };
 
 void initializeGame(PongGame& p) {
+	p.p1.setOriginalLength();
+	p.p2.setOriginalLength();
 	p.p1.setToLeft();
 	p.p2.setToRight();
 	p.b.setInMiddle();
@@ -858,7 +968,7 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 				inputClock.restart();
 			}
 			else if (event.key.code == sf::Keyboard::Escape || isJoystickButtonPressed(0, 6) || isJoystickButtonPressed(1, 6)) {
-				scrollSound.play();
+				escapeSound.play();
 				if (gameState == 0) {
 					window.close();
 				}
@@ -878,10 +988,13 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 				inputClock.restart();
 			}
 			else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space || isJoystickButtonPressed(0, 0) || isJoystickButtonPressed(1, 0)) {
-				scrollSound.play();
+				if (gameState != 3  && gameState != -2)
+					selectSound.play();
 				if (gameState == 0) {
-					if (menuSelection == 0)
+					if (menuSelection == 0) {
+						total = 2;
 						gameState = 1;
+					}
 					else if (menuSelection == 1)
 						gameState = -2;
 					else
@@ -926,6 +1039,7 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 					}
 				}
 				else if (gameState == 5) {
+					winSound.stop();
 					if (menuSelection == 0) {
 						initializeGame(p);
 						delayCount = 0;
@@ -946,44 +1060,85 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 	}
 }
 
+void loadSound(sf::SoundBuffer& buffer, sf::Sound& sound, string path, bool loud) {
+	if (!buffer.loadFromFile(path)) {
+		cout << "Error loading Sound" << endl;
+	}
+	sound.setBuffer(buffer);
+	if (loud)
+		hitPaddleSound.setVolume(20.0f);
+}
+
+void loadFont(sf::Font& font, string path) {
+	font.loadFromFile(path);
+}
+
+void loadSprite(sf::Texture& texturetemp, sf::Sprite& spritetemp, string path) {
+	texturetemp.loadFromFile(path);
+	spritetemp.setTexture(texturetemp);
+}
+
 int main() {
 	srand(time(0));
 
 	Court court;
 	sf::RenderWindow& window = court.getWindow();
 	window.setFramerateLimit(60);
+	window.setMouseCursorVisible(false);
+	window.setMouseCursorGrabbed(true);
+
+	//Load HighScores
+	loadHighScores();
+
+	// loading of fonts
+	loadFont(font, "fonts/verdana.ttf");
+	loadFont(heading, "fonts/scribble.ttf");
+
+	sf::Text loadingText("Loading...", font, 50);
+	setTextinMiddle(loadingText);
+	window.clear();
+	window.draw(loadingText);
+	window.display();
 
 	PongGame p;
 
 	// Loading of Sounds
-	if (!scrollBuffer.loadFromFile("sounds/scroll.wav")) {
-		return 1;
-	}
-	scrollSound.setBuffer(scrollBuffer);
-	scrollSound.setVolume(20.0f);
+	loadSound(scrollBuffer, scrollSound, "sounds/scroll.wav", 1);
 	scrollSound.setPitch(1.5f);
+	loadSound(selectBuffer, selectSound, "sounds/select.mp3", 0);
+	selectSound.setPitch(2.0f);
+	loadSound(escapekBuffer, escapeSound, "sounds/escape.mp3", 1);
+	escapeSound.setVolume(30.0f);
+	escapeSound.setPitch(1.4);
+	loadSound(hitPaddleBuffer, hitPaddleSound, "sounds/hitPaddle1.wav", 0);
+	hitPaddleSound.setPitch(2.0f);
+	loadSound(winBuffer, winSound, "sounds/victory.mp3", 1);
+	bgm.openFromFile("sounds/bgm.mp3");
+	bgm.setLoop(1);
 
 	// Loading of Textures
-	if (!texture.loadFromFile("bg/title.PNG")) {
-		cout << "Error Loading Title BackGround" << endl;
-		return 1;
-	}
-	sprite.setTexture(texture);
-	if (!texture1.loadFromFile("bg/title1.PNG")) {
-		cout << "Error Loading Title BackGround" << endl;
-		return 1;
-	}
-	sprite1.setTexture(texture1);
+	loadSprite(texture, sprite, "bg/title.jpg");
+	loadSprite(gbgTexture, gbgSprite, "bg/gbg1.png");
+	// Load Intro Screen Images
+	intro1T.loadFromFile("bg/intro1.png");
+	intro2T.loadFromFile("bg/intro2.png");
+	intro3T.loadFromFile("bg/intro3.png");
+	intro4T.loadFromFile("bg/intro4.png");
+	intro5T.loadFromFile("bg/intro5.png");
+	intro6T.loadFromFile("bg/intro6.png");
+	intro7T.loadFromFile("bg/intro7.png");
+	intro8T.loadFromFile("bg/intro8.png");
+	intro9T.loadFromFile("bg/intro9.png");
+	intro10T.loadFromFile("bg/intro10.png");
+	intro11T.loadFromFile("bg/intro11.png");
 
-	// loading of fonts
-	if (!font.loadFromFile("fonts/verdana.ttf")) {
-		std::cout << "Error loading Normal Font" << std::endl;
-		return 1;
-	}
-	if (!heading.loadFromFile("fonts/hopeCity.otf")) {
-		cout << "Error Loading Heading Font" << endl;
-		return 1;
-	}
+	// Load Intro Sound
+	if (!sbIntro.loadFromFile("sounds/iSound.wav"))
+		cout << "Failed to load Intro Sound!" << endl;
+	sIntro.setBuffer(sbIntro);
+
+	sIntro.play();
+
 	while (window.isOpen()) {
 		sf::Event event;
 		while (window.pollEvent(event)) {
@@ -993,8 +1148,9 @@ int main() {
 		}
 
 		//Functions CAll
-		loadHighScores();
-		if (gameState == -1) {
+		if (gameState == -3)
+			intro(window);
+		else if (gameState == -1) {
 			getUsername(event, window, username);
 		}
 		else if (gameState == -2)
@@ -1004,10 +1160,16 @@ int main() {
 		else if (gameState == 3) {
 			mainGame(window, mode, p);
 		}
+
 		if (gameState == 3 || gameState == -1 || gameState == -2)
 			scrollSound.setVolume(0.0f);
 		else
-			scrollSound.setVolume(15.0f);
+			scrollSound.setVolume(12.0f);
+		if (gameState >= 3) {
+			bgm.setVolume(0.0f);
+		}
+		else
+			bgm.setVolume(20.0f);
 
 		window.display();
 	}
