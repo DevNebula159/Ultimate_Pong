@@ -49,7 +49,7 @@ int maxScore = 3;
 sf::Clock inputClock;
 
 //Menu
-int menuSelection = 0, total = 2;
+int menuSelection = 0, total = 3;
 
 // Textures
 sf::Texture texture, texture1;
@@ -67,6 +67,8 @@ string username = "";
 sf::Text userInputText;
 
 //HighScore
+vector<string> names;
+vector<int> scores;
 int lead = 0;
 
 int mode = 0;
@@ -114,12 +116,10 @@ void setHeading(sf::Text& text) {
 	text.setPosition(v(text.getPosition().x, text.getPosition().y - 300));
 }
 
-void darj(int lead, string username) {
+void loadHighScores() {
 	ifstream fin("./Highscores.txt");
-	vector<string> names;
 	int score;
 	string name;
-	vector<int> scores;
 	for (int i = 0; i < 5; i++)
 	{
 		fin >> name;
@@ -127,6 +127,10 @@ void darj(int lead, string username) {
 		fin >> score;
 		scores.push_back(score);
 	}
+	fin.close();
+}
+
+void darj(int lead, string username) {
 	for (int i = 0; i < 5; i++)
 	{
 		int temp;
@@ -152,7 +156,6 @@ void darj(int lead, string username) {
 			break;
 		}
 	}
-	fin.close();
 	ofstream fout("./Highscores.txt");
 	for (int i = 0; i < 5; i++)
 	{
@@ -202,6 +205,59 @@ void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
 	window.draw(userInputText);
 	window.draw(askName);
 	window.draw(win);
+}
+
+void setScoreDetails(sf::Text& text, string data) {
+	text.setFont(font);
+	text.setString(data);
+	text.setCharacterSize(50);
+	text.setFillColor(c::White);
+	setTextinMiddle(text);
+}
+
+void displayHighScores(sf::RenderWindow& window) {
+	sf::Text scoreHeading("HighScores", font, 100), goBack("Press Escape to Return to Main Menu", font, 40);
+	goBack.setFillColor(c(192, 192, 192));
+	setTextinMiddle(goBack);
+	goBack.setPosition(v(goBack.getPosition().x, goBack.getPosition().y + 400));
+	setHeading(scoreHeading);
+	scoreHeading.setPosition(v(scoreHeading.getPosition().x, scoreHeading.getPosition().y - 100));
+
+	const int n = 5;
+	sf::Text list[n], list1[n];
+	for (int i = 0; i < n; i++) {
+		string data = names[i];
+		setScoreDetails(list[i], data);
+		data = to_string(scores[i]);
+		setScoreDetails(list1[i], data);
+	}
+
+	float tempPos = (float)(n / 2) * 100;;
+	float x = list[0].getPosition().x, y = list[0].getPosition().y;
+	float x1 = list1[0].getPosition().x, y1 = list1[0].getPosition().y;
+	list[0].setPosition(v(x - 150, y - tempPos));
+	list1[0].setPosition(v(x1 + 150, y1 - tempPos));
+	y = list[0].getPosition().y;
+	y1 = list1[0].getPosition().y;
+	for (int i = 1; i < n; i++) {
+		list[i].setPosition(v(x - 150, y + (i * 100)));
+		list1[i].setPosition(v(x1 + 150, y1 + (i * 100)));
+	}
+
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+		gameState = 0;
+		total = 3;
+	}
+
+	//Draw
+	window.clear();
+	window.draw(sprite);
+	window.draw(scoreHeading);
+	window.draw(goBack);
+	for (int i = 0; i < n; i++) {
+		window.draw(list[i]);
+		window.draw(list1[i]);
+	}
 }
 
 class Court {
@@ -530,9 +586,9 @@ public:
 };
 
 void drawMenu(sf::RenderWindow& window, int gameState) {
-	string s[2] = { "Play", "Exit" }, s1[2] = { "AI", "VS" }, s2[3] = { "Easy", "Medium", "Hard" }, s3[3] = { "Resume", "Return to Main Menu", "Restart" };
+	string s[3] = { "Play", "High Scores","Exit"}, s1[2] = {"AI", "VS"}, s2[3] = {"Easy", "Medium", "Hard"}, s3[3] = {"Resume", "Return to Main Menu", "Restart"};
 	string s4[3] = { "Restart", "Return to Main Menu", "Exit" };
-	Button b[2] = { {s[0], font, 70, c::White }, {s[1], font, 70, c::White } };
+	Button b[3] = { {s[0], font, 70, c::White }, {s[1], font, 70, c::White }, {s[2], font, 70, c::White}};
 	Button b1[2] = { {s1[0], font, 70, c::White}, {s1[1], font, 70, c::White} };
 	Button b2[3] = { {s2[0], font, 70, c::White}, {s2[1], font, 70, c::White}, {s2[2], font, 70, c::White} };
 
@@ -545,7 +601,7 @@ void drawMenu(sf::RenderWindow& window, int gameState) {
 		title.setFillColor(c(hR, hG, hB));
 		setTextinMiddle(title);
 		title.setPosition(v(title.getPosition().x, title.getPosition().y - 350));
-		Menu m(b, 2);
+		Menu m(b, 3);
 		m.setInMiddle();
 
 		// Draw
@@ -788,9 +844,8 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 		stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
 		stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
 	}
-	if (event.type == sf::Event::KeyPressed || sf::Joystick::isButtonPressed || stickX <= 100.0f || stickY <= 100.0f) {
-		if (event.key.code == sf::Keyboard::Tab)
-			window.close();
+	if (event.type == sf::Event::KeyPressed || sf::Joystick::isButtonPressed || event.type == sf::Event::JoystickMoved) {
+
 		if (inputClock.getElapsedTime().asSeconds() > 0.2f) {
 			if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up || checkAxisMoved(0, stickX, stickY, 1, 0) || checkAxisMoved(1, stick1X, stick1Y, 1, 0)) {
 				menuSelection = (menuSelection - 1 + total) % total;
@@ -802,14 +857,14 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 				scrollSound.play();
 				inputClock.restart();
 			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape) || isJoystickButtonPressed(0, 6) || isJoystickButtonPressed(1, 6)) {
+			else if (event.key.code == sf::Keyboard::Escape || isJoystickButtonPressed(0, 6) || isJoystickButtonPressed(1, 6)) {
 				scrollSound.play();
 				if (gameState == 0) {
 					window.close();
 				}
 				else if (gameState == 1) {
 					gameState = 0;
-					total = 2;
+					total = 3;
 				}
 				else if (gameState == 2) {
 					gameState = 1;
@@ -819,12 +874,16 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 					p.loadData(p1tempX, p1tempY, p2tempX, p2tempY, balltempX, balltempY, ballspeedX, ballspeedY, p1scoretemp, p2scoretemp);
 					gameState = 3;
 				}
+				menuSelection = 0;
+				inputClock.restart();
 			}
 			else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space || isJoystickButtonPressed(0, 0) || isJoystickButtonPressed(1, 0)) {
 				scrollSound.play();
 				if (gameState == 0) {
 					if (menuSelection == 0)
 						gameState = 1;
+					else if (menuSelection == 1)
+						gameState = -2;
 					else
 						window.close();
 				}
@@ -857,8 +916,7 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 						gameState = 3;
 					}
 					else if (menuSelection == 1) {
-						menuSelection = 0;
-						total = 2;
+						total = 3;
 						gameState = 0;
 					}
 					else {
@@ -875,11 +933,13 @@ void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
 					}
 					else if (menuSelection == 1) {
 						initializeGame(p);
+						total = 3;
 						gameState = 0;
 					}
 					else
 						window.close();
 				}
+				menuSelection = 0;
 				inputClock.restart();
 			}
 		}
@@ -933,15 +993,18 @@ int main() {
 		}
 
 		//Functions CAll
+		loadHighScores();
 		if (gameState == -1) {
 			getUsername(event, window, username);
 		}
+		else if (gameState == -2)
+			displayHighScores(window);
 		else if (gameState == 0 || gameState == 1 || gameState == 2 || gameState == 4 || gameState == 5)
 			drawMenu(window, gameState);
 		else if (gameState == 3) {
 			mainGame(window, mode, p);
 		}
-		if (gameState == 3 || gameState == -1)
+		if (gameState == 3 || gameState == -1 || gameState == -2)
 			scrollSound.setVolume(0.0f);
 		else
 			scrollSound.setVolume(15.0f);
