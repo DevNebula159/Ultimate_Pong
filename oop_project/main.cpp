@@ -17,7 +17,6 @@
 #include <time.h>
 
 using namespace std;
-using namespace sf;
 
 #define v sf::Vector2f
 #define c sf::Color
@@ -32,15 +31,43 @@ int check;
 sf::Font font;
 sf::Font heading;
 
+// Heading Color
+float hR = 136, hG = 46, hB = 170, hSize = 100;
+
 //Players
 bool player1 = true, player2 = true;
 int p1Score = 0, p2Score = 0;
 
+// Storage of Data during Pause
+float p1tempX = 0, p1tempY = 0, p2tempX = 0, p2tempY = 0, balltempX = 0, balltempY = 0, ballspeedX = 0, ballspeedY = 0;
+int p1scoretemp = 0, p2scoretemp = 0;
+
+// MaxScore
+int maxScore = 3;
+
 //Delay Clock
-Clock inputClock;
+sf::Clock inputClock;
 
 //Menu
 int menuSelection = 0, total = 2;
+
+// Textures
+sf::Texture texture, texture1;
+
+//Sprites
+sf::Sprite sprite, sprite1;
+
+// Sounds
+sf::SoundBuffer scrollBuffer;
+sf::Sound scrollSound;
+
+// Name Input
+//Username
+string username = "";
+sf::Text userInputText;
+
+//HighScore
+int lead = 0;
 
 int mode = 0;
 
@@ -49,6 +76,132 @@ void setTextinMiddle(sf::Text& text) {
 	float x = text.getGlobalBounds().width / 2, y = text.getGlobalBounds().height / 2;
 	text.setOrigin(v(x, y));
 	text.setPosition(v((float)(width / 2), (float)(height / 2)));
+}
+
+// Check if a JoyStick Button is Pressed
+bool isJoystickButtonPressed(unsigned int joystickId, unsigned int button) {
+	return sf::Joystick::isConnected(joystickId) && sf::Joystick::isButtonPressed(joystickId, button);
+}
+
+// Check if a JoyStick Axis is Movedd
+bool checkAxisMoved(unsigned int id, float x, float y, bool Up, bool Down) {
+	if (!sf::Joystick::isConnected(id)) {
+		return false;
+	}
+	if (x == 101 || y == 101) {
+		return false;
+	}
+	float axisMoved = y, axisNotMoved = x;
+	if (abs(x) >= abs(y)) {
+		return false;
+	}
+
+	if (std::abs(x) > 15 || std::abs(y) > 15) {
+		if (abs(axisMoved) - 100 <= 0.1 && abs(axisNotMoved) < 5) {
+			if (Up && axisMoved < 99.0f)
+				return true;
+			if (Down && axisMoved > 99.0f)
+				return true;
+		}
+	}
+	return false;
+}
+
+void setHeading(sf::Text& text) {
+	text.setCharacterSize(100);
+	text.setFillColor(c(hR, hG, hB));
+	setTextinMiddle(text);
+	text.setPosition(v(text.getPosition().x, text.getPosition().y - 300));
+}
+
+void darj(int lead, string username) {
+	ifstream fin("./Highscores.txt");
+	vector<string> names;
+	int score;
+	string name;
+	vector<int> scores;
+	for (int i = 0; i < 5; i++)
+	{
+		fin >> name;
+		names.push_back(name);
+		fin >> score;
+		scores.push_back(score);
+	}
+	for (int i = 0; i < 5; i++)
+	{
+		int temp;
+		string tName;
+		if (scores[i] < lead)
+		{
+			for (int j = i; j < 4; j++)
+			{
+				if (j == i)
+				{
+					temp = scores[j + 1];
+					tName = names[j + 1];
+					swap(scores[j], scores[j + 1]);
+					swap(names[j], names[j + 1]);
+				}
+				else {
+					swap(temp, scores[j + 1]);
+					swap(tName, names[j + 1]);
+				}
+			}
+			scores[i] = lead;
+			names[i] = username;
+			break;
+		}
+	}
+	fin.close();
+	ofstream fout("./Highscores.txt");
+	for (int i = 0; i < 5; i++)
+	{
+		cout << names[i] << " " << scores[i] << endl;
+		fout << names[i] << " " << scores[i] << endl;
+	}
+	fout.close();
+	username = "";
+}
+
+void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
+	sf::Text askName("Enter Your Name", font, 100), win("Player 1 Won", font, 50);
+	setHeading(askName);
+	win.setFillColor(c(204, 0, 102));
+	setTextinMiddle(win);
+	win.setPosition(v(win.getPosition().x, win.getPosition().y + 250));
+
+	if (p2scoretemp == maxScore)
+		win.setString("Player 2 Won");
+
+	userInputText.setFont(font);
+	userInputText.setCharacterSize(40);
+	userInputText.setFillColor(c::White);
+	setTextinMiddle(userInputText);
+
+	if (inputClock.getElapsedTime().asSeconds() > 0.12f) {
+		if (event.type == sf::Event::TextEntered) {
+			if (event.text.unicode == 8) { // Backspace
+				if (username != "")
+					username.erase(username.size() - 1, 1);
+			}
+			else if (event.text.unicode == 13) { // Enter
+				darj(lead, username);
+				gameState = 5;
+			}
+			else if (event.text.unicode < 128) { // Valid ASCII
+				username += (char)event.text.unicode;
+			}
+			userInputText.setString(username);
+			inputClock.restart();
+		}
+	}
+
+	// Draw
+	window.clear();
+	window.draw(sprite1);
+	window.draw(userInputText);
+	window.draw(askName);
+	window.draw(win);
 }
 
 class Court {
@@ -99,7 +252,7 @@ public:
 	}
 
 	void highlight() {
-		text.setFillColor(c::Green);
+		text.setFillColor(c(0, 204, 204));
 	}
 	void notHighlight() {
 		text.setFillColor(this->color);
@@ -194,6 +347,7 @@ public:
 	float getY() {
 		return rec.getPosition().y;
 	}
+
 	sf::RectangleShape& getBody() {
 		return rec;
 	}
@@ -285,6 +439,14 @@ public:
 		return circle.getPosition().y;
 	}
 
+	float getX() {
+		return circle.getPosition().x;
+	}
+
+	float getY() {
+		return circle.getPosition().y;
+	}
+
 	void setPs(float x, float y) {
 		circle.setPosition(v(x, y));
 	}
@@ -294,6 +456,12 @@ public:
 	void setColor(int r, int g, int b) {
 		circle.setFillColor(c(r, g, b));
 	}
+
+	void setSpeed(float x, float y) {
+		speedX = x, speedY = y;
+		this->motion();
+	}
+
 	void setSpeed() {
 		speedX = 15, speedY = -10;
 		float tempY = rand() % 20;
@@ -306,6 +474,14 @@ public:
 			speedX *= -1;
 
 	}
+
+	float getSpeedX() {
+		return speedX;
+	}
+	float getSpeedY() {
+		return speedY;
+	}
+
 	void setInMiddle() {
 		float halfX = (width / 2) - (radius / 2);
 		float halfY = (height / 2) - (radius / 2);
@@ -339,86 +515,197 @@ public:
 		return false;
 	}
 
+	void display(sf::RenderWindow& window) {
+		window.draw(circle);
+	}
+
 	void gameValid() {
 		if (circle.getPosition().x + (2 * radius) < 0) {
-			p2Score++;
 			player1 = false;
 		}
 		if (circle.getPosition().x > width + (2 * radius)) {
-			p1Score++;
 			player2 = false;
 		}
 	}
 };
 
 void drawMenu(sf::RenderWindow& window, int gameState) {
-	string s[2] = { "Play", "Exit" }, s1[2] = { "AI", "VS" }, s2[3] = { "Easy", "Medium", "Hard" };
+	string s[2] = { "Play", "Exit" }, s1[2] = { "AI", "VS" }, s2[3] = { "Easy", "Medium", "Hard" }, s3[3] = { "Resume", "Return to Main Menu", "Restart" };
+	string s4[3] = { "Restart", "Return to Main Menu", "Exit" };
 	Button b[2] = { {s[0], font, 70, c::White }, {s[1], font, 70, c::White } };
 	Button b1[2] = { {s1[0], font, 70, c::White}, {s1[1], font, 70, c::White} };
 	Button b2[3] = { {s2[0], font, 70, c::White}, {s2[1], font, 70, c::White}, {s2[2], font, 70, c::White} };
 
+	Button b3[3] = { {s3[0], font, 50, c::White}, {s3[1], font, 50, c::White}, {s3[2], font, 50, c::White} };
+	Button b4[3] = { {s4[0], font, 50, c::White}, { s4[1], font, 50, c::White }, {s4[2], font, 50, c::White} };
+
 	if (gameState == 0) {
+		sf::Text title("Pong Game", heading, 200);
+		title.setLetterSpacing(0.8f);
+		title.setFillColor(c(hR, hG, hB));
+		setTextinMiddle(title);
+		title.setPosition(v(title.getPosition().x, title.getPosition().y - 350));
 		Menu m(b, 2);
 		m.setInMiddle();
+
+		// Draw
 		window.clear();
+		window.draw(sprite);
 		m.display(window);
+		window.draw(title);
 	}
 	else if (gameState == 1) {
+		sf::Text selectMode("Select Mode", font, hSize);
+		setHeading(selectMode);
 		Menu m1(b1, 2);
 		m1.setInMiddle();
+
+		//Draw
 		window.clear();
+		window.draw(sprite);
 		m1.display(window);
+		window.draw(selectMode);
 	}
 	else if (gameState == 2) {
+		sf::Text selectDifficulty("Select Difficulty", font, hSize);
+		setHeading(selectDifficulty);
 		Menu m2(b2, 3);
 		m2.setInMiddle();
+
+		//Draw
 		window.clear();
+		window.draw(sprite);
 		m2.display(window);
+		window.draw(selectDifficulty);
+	}
+	else if (gameState == 4) {
+		Menu m3(b3, 3);
+		m3.setInMiddle();
+		window.clear();
+		window.draw(sprite1);
+		m3.display(window);
+	}
+	else if (gameState == 5) {
+		sf::Text overText("GameOver", font, 80);
+		overText.setFillColor(c(0, 128, 255));
+		setTextinMiddle(overText);
+		overText.setPosition(v(overText.getPosition().x, overText.getPosition().y - 300));
+
+		Menu m4(b4, 3);
+		m4.setInMiddle();
+
+		//Draw
+		window.clear();
+		window.draw(sprite1);
+		window.draw(overText);
+		m4.display(window);
 	}
 }
 
+bool checkTime() {
+	sf::Clock clk;
+	float elapsed = 0;
+	while (elapsed <= 0.5f) {
+		elapsed = clk.getElapsedTime().asSeconds();
+		if (elapsed >= 0.5f)
+			return true;
+	}
+	return false;
+}
+int delayCount = 0;
 class PongGame {
-	int p1Score, p2Score, maxScore;
+	int p1Score, p2Score;
 	Ball b;
 	Paddle p1, p2;
 	int mode;
 public:
 	PongGame() {
-		p1Score = 0, p2Score = 0, maxScore = 10;
+		p1Score = 0, p2Score = 0;
 		b.setInMiddle();
-		b.setSpeed();
 		p2.setToRight();
 		p1.setToLeft();
 		p1.setSensitivity(20);
-		p2.setSensitivity(15);
+		p2.setSensitivity(20);
 		mode = 0;
 	}
 	void setMode(int mode) {
 		this->mode = mode;
 	}
 	void checks() {
-		if (Keyboard::isKeyPressed(Keyboard::W))
+		float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
+		if (sf::Joystick::isConnected(0)) {
+			stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
+			stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
+		}
+		if (sf::Joystick::isConnected(1)) {
+			stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
+			stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
+		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape) || isJoystickButtonPressed(0, 7) || isJoystickButtonPressed(1, 7)) {
+			this->saveData();
+			total = 3;
+			gameState = 4;
+		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, stickX, stickY, 1, 0))
 			p1.slideUp();
-		if (Keyboard::isKeyPressed(Keyboard::S))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, stickX, stickY, 0, 1))
 			p1.slideDown();
-		if (mode == 0)
-		{
+		if (mode == 0) {
+			p2.setSensitivity(10);
 			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
 				p2.slideDown();
 			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
 				p2.slideUp();
 		}
-		else if (mode == 1) {
-			if (Keyboard::isKeyPressed(Keyboard::Up))
+		if (mode == 1) {
+			p2.setSensitivity(12);
+			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
+				p2.slideDown();
+			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
 				p2.slideUp();
-			if (Keyboard::isKeyPressed(Keyboard::Down))
+		}
+		if (mode == 2) {
+			p2.setSensitivity(15);
+			if (b.getPos() >= p2.getPos() + p2.getSensitivity())
+				p2.slideDown();
+			else if (b.getPos() < p2.getPos() - p2.getSensitivity())
+				p2.slideUp();
+		}
+		else if (mode == 3) {
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || checkAxisMoved(1, stick1X, stick1Y, 1, 0))
+				p2.slideUp();
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || checkAxisMoved(1, stick1X, stick1Y, 0, 1))
 				p2.slideDown();
 		}
+		if (!player1 && p2Score < maxScore) {
+			p2Score++;
+		}
+		if (!player2 && p1Score < maxScore) {
+			p1Score++;
+		}
 		if (!player1 || !player2) {
-			player1 = true;
-			player2 = true;
-			b.setInMiddle();
-			b.setSpeed();
+			if (p1Score < maxScore && p2Score < maxScore) {
+				player1 = true;
+				player2 = true;
+				p1.setToLeft();
+				if (mode == 3)
+					p2.setToRight();
+				b.setInMiddle();
+				delayCount = 0;
+				b.setSpeed();
+			}
+		}
+		if (p1Score == maxScore)
+			p1scoretemp = maxScore;
+		if (p2Score == maxScore)
+			p2scoretemp = maxScore;
+		if (p1Score == maxScore || p2Score == maxScore) {
+			player1 = true, player2 = true;
+			total = 3;
+			check = 3;
+			lead = abs(p1Score - p2Score);
+			userInputText.setString("");
+			gameState = -1;
 		}
 	}
 	void startGame() {
@@ -428,35 +715,113 @@ public:
 		b.hitTop();
 		b.gameValid();
 	}
+
+	void saveData() {
+		p1tempX = p1.getX(), p1tempY = p1.getY();
+		p2tempX = p2.getX(), p2tempY = p2.getY();
+		balltempX = b.getX(), balltempY = b.getY();
+		p1scoretemp = p1Score, p2scoretemp = p2Score;
+		ballspeedX = b.getSpeedX(), ballspeedY = b.getSpeedY();
+		b.setSpeed(0, 0);
+	}
+
+	void loadData(float temp1X, float temp1Y, float temp2X, float temp2Y, float bX, float bY, float speedX, float speedY, int tempScore1, int tempScore2) {
+		p1.setPos(temp1X, temp1Y);
+		p2.setPos(temp2X, temp2Y);
+		b.setPs(bX, bY);
+		b.setSpeed(speedX, speedY);
+		p1Score = tempScore1;
+		p2Score = tempScore2;
+	}
+
 	void render(sf::RenderWindow& window) {
 		window.clear();
+		window.draw(sprite1);
+		string score1 = to_string(p1Score);
+		sf::Text s1(score1, font, 70);
+		string score2 = to_string(p2Score);
+		sf::Text s2(score2, font, 70);
+		s1.setFillColor(c::White);
+		s2.setFillColor(c::White);
+		s1.setPosition(v(500, 50));
+		s2.setPosition(v(1420, 50));
+		window.draw(s1);
+		window.draw(s2);
 		window.draw(p1.getBody());
 		window.draw(p2.getBody());
 		window.draw(b.getBody());
 	}
+	friend void initializeGame(PongGame& p);
 };
+
+void initializeGame(PongGame& p) {
+	p.p1.setToLeft();
+	p.p2.setToRight();
+	p.b.setInMiddle();
+	p.b.setSpeed();
+	p.p1Score = 0;
+	p.p2Score = 0;
+	player1 = true;
+	player2 = true;
+}
 
 void mainGame(sf::RenderWindow& window, int mode, PongGame& p) {
 	p.setMode(mode);
 	p.checks();
 	p.startGame();
 	p.render(window);
+	if (delayCount < 2)
+		delayCount++;
+	if (delayCount == 2) {
+		checkTime();
+		delayCount++;
+	}
 }
 
-void menuInput(sf::RenderWindow& window, sf::Event& event) {
-	if (event.type == sf::Event::KeyPressed) {
-		if (event.key.code == sf::Keyboard::Escape)
+void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
+	float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
+	if (sf::Joystick::isConnected(0)) {
+		stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
+		stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
+	}
+	if (sf::Joystick::isConnected(1)) {
+		stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
+		stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
+	}
+	if (event.type == sf::Event::KeyPressed || sf::Joystick::isButtonPressed || stickX <= 100.0f || stickY <= 100.0f) {
+		if (event.key.code == sf::Keyboard::Tab)
 			window.close();
 		if (inputClock.getElapsedTime().asSeconds() > 0.2f) {
-			if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
+			if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up || checkAxisMoved(0, stickX, stickY, 1, 0) || checkAxisMoved(1, stick1X, stick1Y, 1, 0)) {
 				menuSelection = (menuSelection - 1 + total) % total;
+				scrollSound.play();
 				inputClock.restart();
 			}
-			else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
+			else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down || checkAxisMoved(0, stickX, stickY, 0, 1) || checkAxisMoved(1, stick1X, stick1Y, 0, 1)) {
 				menuSelection = (menuSelection + 1) % total;
+				scrollSound.play();
 				inputClock.restart();
 			}
-			else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space) {
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape) || isJoystickButtonPressed(0, 6) || isJoystickButtonPressed(1, 6)) {
+				scrollSound.play();
+				if (gameState == 0) {
+					window.close();
+				}
+				else if (gameState == 1) {
+					gameState = 0;
+					total = 2;
+				}
+				else if (gameState == 2) {
+					gameState = 1;
+					total = 2;
+				}
+				else if (gameState == 4) {
+					p.loadData(p1tempX, p1tempY, p2tempX, p2tempY, balltempX, balltempY, ballspeedX, ballspeedY, p1scoretemp, p2scoretemp);
+					gameState = 3;
+				}
+			}
+			else if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space || isJoystickButtonPressed(0, 0) || isJoystickButtonPressed(1, 0)) {
+				scrollSound.play();
 				if (gameState == 0) {
 					if (menuSelection == 0)
 						gameState = 1;
@@ -469,16 +834,51 @@ void menuInput(sf::RenderWindow& window, sf::Event& event) {
 						total = 3;
 					}
 					else {
-						mode = 1;
+						mode = 3;
+						initializeGame(p);
 						gameState = 3;
 					}
 				}
 				else if (gameState == 2) {
-					/*if (menuSelection == 0)
-					{
-
-					}*/
+					if (menuSelection == 0)
+						mode = 0;
+					if (menuSelection == 1)
+						mode = 1;
+					if (menuSelection == 2)
+						mode = 2;
+					menuSelection = 0;
+					initializeGame(p);
+					delayCount = 0;
 					gameState = 3;
+				}
+				else if (gameState == 4) {
+					if (menuSelection == 0) {
+						p.loadData(p1tempX, p1tempY, p2tempX, p2tempY, balltempX, balltempY, ballspeedX, ballspeedY, p1scoretemp, p2scoretemp);
+						gameState = 3;
+					}
+					else if (menuSelection == 1) {
+						menuSelection = 0;
+						total = 2;
+						gameState = 0;
+					}
+					else {
+						initializeGame(p);
+						delayCount = 0;
+						gameState = 3;
+					}
+				}
+				else if (gameState == 5) {
+					if (menuSelection == 0) {
+						initializeGame(p);
+						delayCount = 0;
+						gameState = 3;
+					}
+					else if (menuSelection == 1) {
+						initializeGame(p);
+						gameState = 0;
+					}
+					else
+						window.close();
 				}
 				inputClock.restart();
 			}
@@ -495,8 +895,33 @@ int main() {
 
 	PongGame p;
 
+	// Loading of Sounds
+	if (!scrollBuffer.loadFromFile("sounds/scroll.wav")) {
+		return 1;
+	}
+	scrollSound.setBuffer(scrollBuffer);
+	scrollSound.setVolume(20.0f);
+	scrollSound.setPitch(1.5f);
+
+	// Loading of Textures
+	if (!texture.loadFromFile("bg/title.PNG")) {
+		cout << "Error Loading Title BackGround" << endl;
+		return 1;
+	}
+	sprite.setTexture(texture);
+	if (!texture1.loadFromFile("bg/title1.PNG")) {
+		cout << "Error Loading Title BackGround" << endl;
+		return 1;
+	}
+	sprite1.setTexture(texture1);
+
+	// loading of fonts
 	if (!font.loadFromFile("fonts/verdana.ttf")) {
-		std::cout << "Error loading Verdana Font" << std::endl;
+		std::cout << "Error loading Normal Font" << std::endl;
+		return 1;
+	}
+	if (!heading.loadFromFile("fonts/hopeCity.otf")) {
+		cout << "Error Loading Heading Font" << endl;
 		return 1;
 	}
 	while (window.isOpen()) {
@@ -504,15 +929,22 @@ int main() {
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
 				window.close();
-			menuInput(window, event);
+			menuInput(window, event, p);
 		}
 
 		//Functions CAll
-		if (gameState < 3)
+		if (gameState == -1) {
+			getUsername(event, window, username);
+		}
+		else if (gameState == 0 || gameState == 1 || gameState == 2 || gameState == 4 || gameState == 5)
 			drawMenu(window, gameState);
 		else if (gameState == 3) {
 			mainGame(window, mode, p);
 		}
+		if (gameState == 3 || gameState == -1)
+			scrollSound.setVolume(0.0f);
+		else
+			scrollSound.setVolume(15.0f);
 
 		window.display();
 	}
