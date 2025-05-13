@@ -93,26 +93,21 @@ bool isJoystickButtonPressed(unsigned int joystickId, unsigned int button) {
 }
 
 // Check if a JoyStick Axis is Movedd
-bool checkAxisMoved(unsigned int id, float x, float y, bool Up, bool Down) {
+bool checkAxisMoved(unsigned int id, bool Up, bool Down) {
 	if (!sf::Joystick::isConnected(id)) {
 		return false;
 	}
-	if (x == 101 || y == 101) {
+	float threshold = 15.0f;
+	float stickX = sf::Joystick::getAxisPosition(id, sf::Joystick::X);
+	float stickY = sf::Joystick::getAxisPosition(id, sf::Joystick::Y);
+	if (abs(stickY) < threshold || abs(stickX) >= abs(stickY)) {
 		return false;
 	}
-	float axisMoved = y, axisNotMoved = x;
-	if (abs(x) >= abs(y)) {
-		return false;
-	}
+	if (Up && stickY < -99.0f)
+		return true;
+	if (Down && stickY > 99.0f)
+		return true;
 
-	if (std::abs(x) > 15 || std::abs(y) > 15) {
-		if (abs(axisMoved) - 100 <= 0.1 && abs(axisNotMoved) < 5) {
-			if (Up && axisMoved < 99.0f)
-				return true;
-			if (Down && axisMoved > 99.0f)
-				return true;
-		}
-	}
 	return false;
 }
 
@@ -192,15 +187,16 @@ void getUsername(sf::Event& event, sf::RenderWindow& window, string& username) {
 	setTextinMiddle(userInputText);
 
 	if (inputClock.getElapsedTime().asSeconds() > 0.12f) {
-		if (event.type == sf::Event::TextEntered) {
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)){
+			darj(lead, username);
+			loadHighScores();
+			inputClock.restart();
+			gameState = 5;
+		}
+		else if (event.type == sf::Event::TextEntered) {
 			if (event.text.unicode == 8) { // Backspace
 				if (username != "")
 					username.erase(username.size() - 1, 1);
-			}
-			else if (event.text.unicode == 13) { // Enter
-				darj(lead, username);
-				loadHighScores();
-				gameState = 5;
 			}
 			else if (event.text.unicode < 128) { // Valid ASCII
 				username += (char)event.text.unicode;
@@ -635,15 +631,6 @@ public:
 	}
 
 	bool hitPaddle(Paddle& other) {
-		float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
-		if (sf::Joystick::isConnected(0)) {
-			stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
-			stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
-		}
-		if (sf::Joystick::isConnected(1)) {
-			stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
-			stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
-		}
 		if (circle.getGlobalBounds().intersects(other.getBody().getGlobalBounds())) {
 			hitPaddleSound.play();
 			if (speedX < 2) {
@@ -651,10 +638,10 @@ public:
 				speedY *= 1.2;
 			}
 			speedX *= -1;
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, stickX, stickY, 1, 0) || checkAxisMoved(1, stickX, stickY, 1, 0)) {
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, 1, 0) || checkAxisMoved(1, 1, 0)) {
 				if (speedY > 0) speedY *= -1;
 			}
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, stickX, stickY, 0, 1) || checkAxisMoved(1, stickX, stickY, 0, 1)) {
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, 0, 1) || checkAxisMoved(1, 0, 1)) {
 				if (speedY < 0) speedY *= -1;
 			}
 			return true;
@@ -797,23 +784,14 @@ public:
 		this->mode = mode;
 	}
 	void checks() {
-		float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
-		if (sf::Joystick::isConnected(0)) {
-			stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
-			stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
-		}
-		if (sf::Joystick::isConnected(1)) {
-			stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
-			stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
-		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape) || isJoystickButtonPressed(0, 7) || isJoystickButtonPressed(1, 7)) {
 			this->saveData();
 			total = 3;
 			gameState = 4;
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, stickX, stickY, 1, 0))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) || checkAxisMoved(0, 1, 0))
 			p1.slideUp();
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, stickX, stickY, 0, 1))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) || checkAxisMoved(0, 0, 1))
 			p1.slideDown();
 		if (mode <= 2) {
 			if (mode == 0)
@@ -829,9 +807,9 @@ public:
 				p2.slideUp();
 		}
 		else if (mode == 3) {
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || checkAxisMoved(1, stick1X, stick1Y, 1, 0))
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || checkAxisMoved(1, 1, 0))
 				p2.slideUp();
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || checkAxisMoved(1, stick1X, stick1Y, 0, 1))
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || checkAxisMoved(1, 0, 1))
 				p2.slideDown();
 		}
 		if (!player1 && p2Score < maxScore) {
@@ -945,24 +923,15 @@ void mainGame(sf::RenderWindow& window, int mode, PongGame& p) {
 }
 
 void menuInput(sf::RenderWindow& window, sf::Event& event, PongGame& p) {
-	float stickX = 101, stickY = 101, stick1X = 101, stick1Y = 101;
-	if (sf::Joystick::isConnected(0)) {
-		stickX = sf::Joystick::getAxisPosition(0, sf::Joystick::X);
-		stickY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y);
-	}
-	if (sf::Joystick::isConnected(1)) {
-		stick1X = sf::Joystick::getAxisPosition(1, sf::Joystick::X);
-		stick1Y = sf::Joystick::getAxisPosition(1, sf::Joystick::Y);
-	}
 	if (event.type == sf::Event::KeyPressed || sf::Joystick::isButtonPressed || event.type == sf::Event::JoystickMoved) {
 
 		if (inputClock.getElapsedTime().asSeconds() > 0.2f) {
-			if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up || checkAxisMoved(0, stickX, stickY, 1, 0) || checkAxisMoved(1, stick1X, stick1Y, 1, 0)) {
+			if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up || checkAxisMoved(0, 1, 0) || checkAxisMoved(1, 1, 0)) {
 				menuSelection = (menuSelection - 1 + total) % total;
 				scrollSound.play();
 				inputClock.restart();
 			}
-			else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down || checkAxisMoved(0, stickX, stickY, 0, 1) || checkAxisMoved(1, stick1X, stick1Y, 0, 1)) {
+			else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down || checkAxisMoved(0, 0, 1) || checkAxisMoved(1, 0, 1)) {
 				menuSelection = (menuSelection + 1) % total;
 				scrollSound.play();
 				inputClock.restart();
