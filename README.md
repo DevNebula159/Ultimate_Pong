@@ -80,4 +80,14 @@ Feedback welcome, fun guaranteed.
 
 ---
 
+## 👥 Contributors
+
+Thanks to these amazing people for helping make this project awesome:
+
+https://github.com/DevNebula159
+https://github.com/Default007s
+https://github.com/Khubaib7-del
+
+--
+
 Made with too much caffeine and zero sleep ☕💻  
